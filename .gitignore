@@ -1,0 +1,12 @@
+# folder
+benchmarks
+build
+run
+.vscode
+log
+output
+tmp
+dump
+
+# file
+xcvu3p.device
