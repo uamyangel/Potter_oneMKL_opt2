@@ -114,7 +114,21 @@ target_link_options(route PRIVATE -qopenmp)
 # Step 7: Define USE_ONEMKL macro for conditional compilation
 target_compile_definitions(route PRIVATE USE_ONEMKL)
 
-message(STATUS "✓ oneMKL optimization ENABLED")
+# Step 8: Add performance optimization flags for Intel icpx
+target_compile_options(route PRIVATE
+    -O3                          # Maximum optimization
+    -march=native                # Use all CPU instructions available
+    -mtune=native                # Tune for current CPU
+    -fno-semantic-interposition  # Better optimization across translation units
+    -finline-functions           # Aggressive function inlining
+    -funroll-loops               # Loop unrolling
+)
+
+# Optional: Disable AVX-512 if thermal throttling is a concern
+# Uncomment the line below if CPU frequency drops during execution
+# target_compile_options(route PRIVATE -mno-avx512f)
+
+message(STATUS "✓ oneMKL optimization ENABLED (with critical scalar function fixes)")
 message(STATUS "  - MKL Include: ${MKL_INCLUDE_DIRS}")
 message(STATUS "  - MKL Library: ${MKL_LIB_DIR}")
 message(STATUS "  - Threading: mkl_intel_thread (Intel OpenMP)")
@@ -123,5 +137,6 @@ message(STATUS "Build Configuration:")
 message(STATUS "  Compiler: Intel ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "  oneMKL:   ${MKL_ROOT}")
 message(STATUS "  OpenMP:   -qopenmp")
-message(STATUS "  Optimize: USE_ONEMKL macro defined")
+message(STATUS "  Optimize: USE_ONEMKL, -O3, -march=native")
+message(STATUS "  Note:     scalar_sqrt/fabs use std lib (not VML) for performance")
 message(STATUS "=============================================================================")
