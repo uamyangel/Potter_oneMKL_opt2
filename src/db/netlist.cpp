@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include "utils/MTStat.h"
+#include "utils/mkl_utils.h"  // Intel oneMKL optimized math functions
 
 namespace Raw {
 
@@ -449,7 +450,8 @@ void Netlist::updateNetAndConnectionBBox()
         }
         x_center[i] = (int)std::ceil(x_sum / cnt);
         y_center[i] = (int)std::ceil(y_sum / cnt);
-        double_hpwl[i] = std::max(0, 2 * (std::abs(y_max - y_min + 1) + std::abs(x_max - x_min + 1)));        
+        // OPTIMIZED: Use MKL abs for HPWL calculation
+        double_hpwl[i] = std::max(0, 2 * (mkl_utils::scalar_abs(y_max - y_min + 1) + mkl_utils::scalar_abs(x_max - x_min + 1)));        
     }
 
     for (int i = 0; i < connNum; i++) {

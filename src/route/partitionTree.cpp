@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <string>
 #include <queue>
+#include "utils/mkl_utils.h"  // Intel oneMKL optimized math functions
 
 using utils::BoxT;
 
@@ -68,7 +69,8 @@ void PartitionTree::buildTree(PartitionTreeNode* root)
 		int after = xTotalAfter[x];
 		if (before == maxXBefore || after == maxXAfter) /* VPR: Cutting here would leave no nets to the left or right */
 			continue;
-		double balanceScore = std::abs(xTotalBefore[x] - xTotalAfter[x]) * 1.0 / std::max(xTotalBefore[x], xTotalAfter[x]);
+		// OPTIMIZED: Use MKL abs for balance score calculation
+		double balanceScore = mkl_utils::scalar_abs(xTotalBefore[x] - xTotalAfter[x]) * 1.0 / std::max(xTotalBefore[x], xTotalAfter[x]);
 		if (balanceScore < bestScore) {
 			bestScore = balanceScore;
 			bestPos = bbox.lx() + x;
@@ -83,7 +85,8 @@ void PartitionTree::buildTree(PartitionTreeNode* root)
 		int after = yTotalAfter[y];
 		if (before == maxYBefore || after == maxYAfter) /* VPR: Cutting here would leave no nets to the left or right (sideways) */
 			continue;
-		double balanceScore = std::abs(yTotalBefore[y] - yTotalAfter[y]) * 1.0 / std::max(yTotalBefore[y], yTotalAfter[y]);
+		// OPTIMIZED: Use MKL abs for balance score calculation
+		double balanceScore = mkl_utils::scalar_abs(yTotalBefore[y] - yTotalAfter[y]) * 1.0 / std::max(yTotalBefore[y], yTotalAfter[y]);
 		if (balanceScore < bestScore) {
 			bestScore = balanceScore;
 			bestPos = bbox.ly() + y;

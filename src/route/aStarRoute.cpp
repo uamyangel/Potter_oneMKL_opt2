@@ -7,6 +7,7 @@
 #include <fstream>
 #include <filesystem>
 #include "utils/MTStat.h"
+#include "utils/mkl_utils.h"  // Intel oneMKL optimized math functions
 #include "db/routeResult.h"
 
 /**
@@ -406,7 +407,8 @@ void aStarRoute::updateIndirectConnectionBBox(int x_margin, int y_margin) {
 			net.updateYMinBB(y_min);
 			net.updateYMaxBB(y_max);
 		}
-		net.setDoubleHpwl(std::max(0, 2 * (std::abs(net.getYMaxBB() - net.getYMinBB() + 1) + std::abs(net.getXMaxBB() - net.getXMinBB() + 1))));
+		// OPTIMIZED: Use MKL abs for bounding box calculation
+		net.setDoubleHpwl(std::max(0, 2 * (mkl_utils::scalar_abs(net.getYMaxBB() - net.getYMinBB() + 1) + mkl_utils::scalar_abs(net.getXMaxBB() - net.getXMinBB() + 1))));
 	}
 }
 
@@ -572,8 +574,9 @@ bool aStarRoute::routeOneConnection(int connectionId, int tid, bool sync)
 	        auto sinkRNode = connection.getSinkRNode();
 	        int sinkX = sinkRNode->getBeginTileXCoordinate();
 	        int sinkY = sinkRNode->getBeginTileYCoordinate();
-	        int deltaX = std::abs(childX - sinkX);
-	        int deltaY = std::abs(childY - sinkY);
+	        // HOT PATH: Manhattan distance calculation in A* search innermost loop
+	        int deltaX = mkl_utils::scalar_abs(childX - sinkX);
+	        int deltaY = mkl_utils::scalar_abs(childY - sinkY);
 
 			double distanceToSink = deltaX + deltaY;
 	        double newTotalPathCost = newPartialPathCost + estWLWeight * distanceToSink / sharingFactor;
@@ -678,8 +681,10 @@ double aStarRoute::getNodeCost(RouteNode* rnode, const Connection& connection, i
 	double biasCost = 0;
     if (!isTarget) {
         auto& net = database.nets[connection.getNetId()];
+        // HOT PATH: Bias cost calculation in getNodeCost function
         biasCost = rnode->getBaseCost() / net.getConnectionSize() *
-                (std::fabs(rnode->getEndTileXCoordinate() - net.getXCenter()) + std::fabs(rnode->getEndTileYCoordinate() - net.getYCenter())) / net.getDoubleHpwl();
+                (mkl_utils::scalar_fabs(rnode->getEndTileXCoordinate() - net.getXCenter()) +
+                 mkl_utils::scalar_fabs(rnode->getEndTileYCoordinate() - net.getYCenter())) / net.getDoubleHpwl();
     }
 
 	return rnode->getBaseCost() * rnode->getHistoricalCongestionCost() * presentCongestionCost / sharingFactor + biasCost;
@@ -733,12 +738,13 @@ void aStarRoute::updateUsersAndPresentCongestionCost(Connection& connection)
  * 
  * @param isCongestedDesign Whether this design is thought to be a congested design after the first routing iteration.
  */
-void aStarRoute::dynamicCostFactorUpdating(bool isCongestedDesign) 
+void aStarRoute::dynamicCostFactorUpdating(bool isCongestedDesign)
 {
 	if (isCongestedDesign) {
-		double r = 1.0 / (1 + exp((1 - iter) * 0.5));
+		// OPTIMIZED: Use MKL exp for better numerical accuracy
+		double r = 1.0 / (1 + mkl_utils::scalar_exp((1 - iter) * 0.5));
 		historicalCongestionFactor = 2 * r;
-		double r2 = 3.0 / (1 + exp((iter - 1)));
+		double r2 = 3.0 / (1 + mkl_utils::scalar_exp((iter - 1)));
 		presentCongestionMultiplier = 1.1 * (1 + r2);
 	}
 

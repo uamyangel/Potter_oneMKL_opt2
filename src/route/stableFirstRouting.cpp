@@ -7,6 +7,7 @@
 #include <fstream>
 #include <filesystem>
 #include "utils/MTStat.h"
+#include "utils/mkl_utils.h"  // Intel oneMKL optimized math functions
 #include "db/routeResult.h"
 
 /**
@@ -217,8 +218,9 @@ double aStarRoute::diou(const Net& centroid, const Net& net) {
     int cX = (centroid.getXMaxBB() + centroid.getXMinBB()) / 2;
     int cY = (centroid.getYMaxBB() + centroid.getYMinBB()) / 2;
 
-    double d = std::sqrt(static_cast<double>((xB - xA) * (xB - xA) + (yB - yA) * (yB - yA)));
-    double c = std::sqrt(static_cast<double>((cX - xB) * (cX - xB) + (cY - yB) * (cY - yB)));
+    // OPTIMIZED: Use MKL sqrt for distance calculation
+    double d = mkl_utils::scalar_sqrt(static_cast<double>((xB - xA) * (xB - xA) + (yB - yA) * (yB - yA)));
+    double c = mkl_utils::scalar_sqrt(static_cast<double>((cX - xB) * (cX - xB) + (cY - yB) * (cY - yB)));
 
     return 1.0 - iouValue + (d * d) / (c * c);
 }
@@ -470,7 +472,8 @@ vector<int> aStarRoute::kmeans(const vector<int>& netIds, int k) {
 	for (int j = 0; j < k; j++) {
 		stdDevOfClusterSize += (oldCounts[j] - averageClusterSize) * (oldCounts[j] - averageClusterSize);
 	}
-	stdDevOfClusterSize = std::sqrt(stdDevOfClusterSize * 1.0 / k);
+	// OPTIMIZED: Use MKL sqrt for standard deviation calculation
+	stdDevOfClusterSize = mkl_utils::scalar_sqrt(stdDevOfClusterSize * 1.0 / k);
 	clusterUnbalanceRatio = stdDevOfClusterSize / averageClusterSize;
 
 	assert_t(labels.size() == netIds.size());

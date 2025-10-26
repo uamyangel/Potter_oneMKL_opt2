@@ -7,6 +7,7 @@
 #include <fstream>
 #include <filesystem>
 #include "utils/MTStat.h"
+#include "utils/mkl_utils.h"  // Intel oneMKL optimized math functions
 #include "db/routeResult.h"
 
 /**
@@ -121,7 +122,8 @@ void aStarRoute::regionBasedPartition() {
 			if (before == maxXBefore || after == maxXAfter) /* VPR: Cutting here would leave no nets to the left or right */
 				continue;
 			// double balanceScore = std::abs(xTotalBefore[x] - xTotalAfter[x]) * 1.0 / std::max(xTotalBefore[x], xTotalAfter[x]);
-			double balanceScore = std::abs(xTotalBefore[x] - xTotalAfter[x]);
+			// OPTIMIZED: Use MKL abs for balance score calculation
+			double balanceScore = mkl_utils::scalar_abs(xTotalBefore[x] - xTotalAfter[x]);
 			if (balanceScore < bestScore) {
 				bestScore = balanceScore;
 				bestPos = partition->xMin + x;
@@ -137,7 +139,8 @@ void aStarRoute::regionBasedPartition() {
 			if (before == maxYBefore || after == maxYAfter) /* VPR: Cutting here would leave no nets to the left or right (sideways) */
 				continue;
 			// double balanceScore = std::abs(yTotalBefore[y] - yTotalAfter[y]) * 1.0 / std::max(yTotalBefore[y], yTotalAfter[y]);
-			double balanceScore = std::abs(yTotalBefore[y] - yTotalAfter[y]);
+			// OPTIMIZED: Use MKL abs for balance score calculation
+			double balanceScore = mkl_utils::scalar_abs(yTotalBefore[y] - yTotalAfter[y]);
 			if (balanceScore < bestScore) {
 				bestScore = balanceScore;
 				bestPos = partition->yMin + y;
@@ -161,7 +164,8 @@ void aStarRoute::regionBasedPartition() {
         	        tempSelfNetIds_X.emplace_back(netId);
         	    }
         	}
-        	int diff_X = std::abs((int)(tempLChild_X->netIds.size() - tempRChild_X->netIds.size()));
+        	// OPTIMIZED: Use MKL abs for partition balance calculation
+        	int diff_X = mkl_utils::scalar_abs((int)(tempLChild_X->netIds.size() - tempRChild_X->netIds.size()));
         	int total_X = tempLChild_X->netIds.size() + tempRChild_X->netIds.size();
 
         	
@@ -186,7 +190,8 @@ void aStarRoute::regionBasedPartition() {
         	        tempSelfNetIds_Y.emplace_back(netId);
         	    }
         	}
-        	int diff_Y = std::abs((int)(tempLChild_Y->netIds.size() - tempRChild_Y->netIds.size()));
+        	// OPTIMIZED: Use MKL abs for partition balance calculation
+        	int diff_Y = mkl_utils::scalar_abs((int)(tempLChild_Y->netIds.size() - tempRChild_Y->netIds.size()));
         	int total_Y = tempLChild_Y->netIds.size() + tempRChild_Y->netIds.size();
 
 			partition->LChild = tempLChild_Y;
@@ -359,8 +364,9 @@ vector<vector<int>> aStarRoute::inLevelRePartition(vector<PartitionBBox*>& level
 			}
 			// check partitions with bigger overlap first
 			if (overlapLHS != overlapRHS) return overlapLHS > overlapRHS;
-			double deltaLHS = std::fabs(net.getXCenter() - levelBoxPieces[lhs].getXCenter()) + std::fabs(net.getYCenter() - levelBoxPieces[lhs].getYCenter());
-			double deltaRHS = std::fabs(net.getXCenter() - levelBoxPieces[rhs].getXCenter()) + std::fabs(net.getYCenter() - levelBoxPieces[rhs].getYCenter());
+			// OPTIMIZED: Use MKL fabs for distance calculation
+			double deltaLHS = mkl_utils::scalar_fabs(net.getXCenter() - levelBoxPieces[lhs].getXCenter()) + mkl_utils::scalar_fabs(net.getYCenter() - levelBoxPieces[lhs].getYCenter());
+			double deltaRHS = mkl_utils::scalar_fabs(net.getXCenter() - levelBoxPieces[rhs].getXCenter()) + mkl_utils::scalar_fabs(net.getYCenter() - levelBoxPieces[rhs].getYCenter());
 			return deltaLHS < deltaRHS;
 		};
 		vector<int> partsIds_ = partsIds;
