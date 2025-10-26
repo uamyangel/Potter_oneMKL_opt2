@@ -331,3 +331,45 @@ cmake --build build -j 40
 
 **版本**: v1.0-intel-onemkl-full
 **日期**: 2025-10-26
+**更新**: 2025-10-26 修复 Intel icpx 编译错误（VLA 初始化）
+
+---
+
+## 八、编译修复记录
+
+### Ubuntu + Intel icpx 编译错误修复
+
+**错误信息**:
+```
+error: variable-sized object may not be initialized
+int xTotalBefore[W - 1] = {0};
+```
+
+**原因**: Intel icpx 严格遵循 C++ 标准，不允许对变长数组（VLA）进行初始化，而 gcc 允许此扩展语法。
+
+**修复文件**:
+1. `src/route/partitionTree.cpp` (Line 32-35)
+2. `src/route/runtimeFirstRouting.cpp` (Line 89-92)
+
+**修复方法**: 使用 `std::vector` 替代变长数组
+
+```cpp
+// 修复前（gcc 可以，icpx 报错）
+int xTotalBefore[W - 1] = {0};
+int xTotalAfter[W - 1] = {0};
+int yTotalBefore[H - 1] = {0};
+int yTotalAfter[H - 1] = {0};
+
+// 修复后（标准 C++，两者都支持）
+std::vector<int> xTotalBefore(W - 1, 0);
+std::vector<int> xTotalAfter(W - 1, 0);
+std::vector<int> yTotalBefore(H - 1, 0);
+std::vector<int> yTotalAfter(H - 1, 0);
+```
+
+**性能影响**: 无（std::vector 性能与数组相当，且此处非热路径）
+
+---
+
+**版本**: v1.0-intel-onemkl-full
+**日期**: 2025-10-26

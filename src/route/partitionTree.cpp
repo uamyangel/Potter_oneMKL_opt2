@@ -29,10 +29,11 @@ void PartitionTree::buildTree(PartitionTreeNode* root)
 	int W = bbox.hx() - bbox.lx() + 1;
 	int H = bbox.hy() - bbox.ly() + 1;
 
-	int xTotalBefore[W - 1] = {0};
-	int xTotalAfter[W - 1] = {0};
-	int yTotalBefore[H - 1] = {0};
-	int yTotalAfter[H - 1] = {0};
+	// FIX: Intel icpx doesn't allow VLA initialization, use std::vector
+	std::vector<int> xTotalBefore(W - 1, 0);
+	std::vector<int> xTotalAfter(W - 1, 0);
+	std::vector<int> yTotalBefore(H - 1, 0);
+	std::vector<int> yTotalAfter(H - 1, 0);
 
 	for (int connId: root->connectionIds) {
 		const Connection& connection = connections[connId];

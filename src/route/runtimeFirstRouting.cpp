@@ -86,10 +86,11 @@ void aStarRoute::regionBasedPartition() {
 		int W = partition->xMax - partition->xMin + 1;
 		int H = partition->yMax - partition->yMin + 1;
 
-		int xTotalBefore[W - 1] = {0};
-		int xTotalAfter[W - 1] = {0};
-		int yTotalBefore[H - 1] = {0};
-		int yTotalAfter[H - 1] = {0};
+		// FIX: Intel icpx doesn't allow VLA initialization, use std::vector
+		std::vector<int> xTotalBefore(W - 1, 0);
+		std::vector<int> xTotalAfter(W - 1, 0);
+		std::vector<int> yTotalBefore(H - 1, 0);
+		std::vector<int> yTotalAfter(H - 1, 0);
 
 		for (int netId: partition->netIds) {
 			const Net& net = database.nets[netId];
