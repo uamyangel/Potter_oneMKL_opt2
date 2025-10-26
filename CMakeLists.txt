@@ -12,6 +12,9 @@ set(PATH_LIB ${PROJECT_SOURCE_DIR}/libs)
 
 file(GLOB_RECURSE SRC_FILES ${PATH_SRC}/*.cpp)
 
+# Disable capnproto tests to avoid compilation issues with Intel icpx
+set(BUILD_TESTING OFF CACHE BOOL "Disable testing" FORCE)
+
 add_subdirectory(${PATH_LIB}/capnproto)
 
 find_package(ZLIB REQUIRED)

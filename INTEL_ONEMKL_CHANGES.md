@@ -369,6 +369,20 @@ std::vector<int> yTotalAfter(H - 1, 0);
 
 **性能影响**: 无（std::vector 性能与数组相当，且此处非热路径）
 
+### 禁用 capnproto 测试编译
+
+**问题**: capnproto 第三方库的测试代码 `kj-tests` 在 Intel icpx 下编译失败（缺少 `uint8_t` 等类型定义）
+
+**影响**: 不影响主程序 `route` 的编译和运行
+
+**修复方法**: 在 `CMakeLists.txt` Line 15-16 添加
+```cmake
+# Disable capnproto tests to avoid compilation issues with Intel icpx
+set(BUILD_TESTING OFF CACHE BOOL "Disable testing" FORCE)
+```
+
+**结果**: 主程序 `route` 编译成功，测试程序被跳过
+
 ---
 
 **版本**: v1.0-intel-onemkl-full
