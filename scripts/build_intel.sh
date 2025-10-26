@@ -90,7 +90,7 @@ if [ -z "$INTEL_COMPILER" ]; then
 
     # Common oneAPI installation paths
     ONEAPI_PATHS=(
-        "/opt/intel/oneapi/setvars.sh"
+        "/xrepo/App/oneAPI/setvars.sh"
         "$HOME/intel/oneapi/setvars.sh"
         "/intel/oneapi/setvars.sh"
     )
@@ -115,7 +115,7 @@ if [ -z "$INTEL_COMPILER" ]; then
         echo "  https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html"
         echo ""
         echo "Or manually load the environment:"
-        echo "  source /opt/intel/oneapi/setvars.sh"
+        echo "  source /xrepo/App/oneAPI/setvars.sh"
         echo ""
         exit 1
     fi
@@ -148,7 +148,7 @@ ${INTEL_COMPILER} --version | head -n 2
 # Check MKLROOT
 if [ -z "$MKLROOT" ]; then
     echo -e "${RED}ERROR: MKLROOT not set!${NC}"
-    echo "Please load oneAPI environment: source /opt/intel/oneapi/setvars.sh"
+    echo "Please load oneAPI environment: source /xrepo/App/oneAPI/setvars.sh"
     exit 1
 fi
 
