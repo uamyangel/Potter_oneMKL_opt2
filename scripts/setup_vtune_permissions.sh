@@ -50,9 +50,9 @@ else
     # 查找 VTune 驱动安装脚本
     VTUNE_DRIVER_SCRIPT=""
     POSSIBLE_PATHS=(
-        "/opt/intel/oneapi/vtune/latest/sepdk/src/insmod-sep"
-        "/opt/intel/oneapi/vtune/2025.4/sepdk/src/insmod-sep"
-        "/opt/intel/oneapi/vtune/2025/sepdk/src/insmod-sep"
+        "/xrepo/App/oneAPI/vtune/latest/sepdk/src/insmod-sep"
+        "/xrepo/App/oneAPI/vtune/2025.4/sepdk/src/insmod-sep"
+        "/xrepo/App/oneAPI/vtune/2025/sepdk/src/insmod-sep"
     )
 
     for path in "${POSSIBLE_PATHS[@]}"; do
