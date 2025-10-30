@@ -212,6 +212,9 @@ run_vtune_analysis() {
     local vtune_cmd="vtune -collect ${analysis_type}"
     vtune_cmd="$vtune_cmd -result-dir ${result_dir}"
 
+    # 添加用户模式采样（不需要 root 权限或驱动）
+    vtune_cmd="$vtune_cmd -knob enable-user-tasks=true"
+
     # VTune 2025 会自动选择最佳配置，不需要手动指定太多 knob
 
     # 添加应用程序命令
@@ -228,8 +231,16 @@ run_vtune_analysis() {
     # 记录开始时间
     START_TIME=$(date +%s)
 
-    # 运行分析
-    eval $vtune_cmd
+    # 运行分析（如果失败，尝试使用 sudo）
+    if ! eval $vtune_cmd 2>&1; then
+        echo -e "${YELLOW}尝试使用 sudo 运行 VTune...${NC}"
+        eval "sudo $vtune_cmd" 2>&1 || {
+            echo -e "${RED}VTune 运行失败${NC}"
+            echo -e "${YELLOW}请尝试运行权限配置脚本:${NC}"
+            echo -e "  ${CYAN}sudo ./scripts/setup_vtune_permissions.sh${NC}"
+            return 1
+        }
+    fi
 
     # 记录结束时间
     END_TIME=$(date +%s)
