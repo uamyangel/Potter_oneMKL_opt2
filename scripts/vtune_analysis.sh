@@ -94,9 +94,7 @@ check_vtune() {
 
         # 常见的 Intel oneAPI 安装路径
         POSSIBLE_PATHS=(
-            "/opt/intel/oneapi/setvars.sh"
-            "$HOME/intel/oneapi/setvars.sh"
-            "/opt/intel/vtune/latest/vtune-vars.sh"
+            "/xrepo/App/oneAPI/setvars.sh"
         )
 
         FOUND=0
@@ -113,7 +111,7 @@ check_vtune() {
             echo -e "${RED}错误: 未找到 Intel VTune!${NC}"
             echo -e "${YELLOW}请先安装 Intel VTune Profiler:${NC}"
             echo "  1. 下载 Intel oneAPI Base Toolkit: https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html"
-            echo "  2. 安装后运行: source /opt/intel/oneapi/setvars.sh"
+            echo "  2. 安装后运行: source /xrepo/App/oneAPI/setvars.sh"
             echo "  3. 或者单独安装 VTune: https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html"
             exit 1
         fi
@@ -208,14 +206,9 @@ run_vtune_analysis() {
         rm -rf "$result_dir"
     fi
 
-    # 构建 VTune 命令（使用默认配置，VTune 2025 版本更智能）
+    # 构建 VTune 命令（使用最基本的配置，VTune 2025 会自动优化）
     local vtune_cmd="vtune -collect ${analysis_type}"
     vtune_cmd="$vtune_cmd -result-dir ${result_dir}"
-
-    # 添加用户模式采样（不需要 root 权限或驱动）
-    vtune_cmd="$vtune_cmd -knob enable-user-tasks=true"
-
-    # VTune 2025 会自动选择最佳配置，不需要手动指定太多 knob
 
     # 添加应用程序命令
     vtune_cmd="$vtune_cmd -- ${EXECUTABLE}"
@@ -231,16 +224,8 @@ run_vtune_analysis() {
     # 记录开始时间
     START_TIME=$(date +%s)
 
-    # 运行分析（如果失败，尝试使用 sudo）
-    if ! eval $vtune_cmd 2>&1; then
-        echo -e "${YELLOW}尝试使用 sudo 运行 VTune...${NC}"
-        eval "sudo $vtune_cmd" 2>&1 || {
-            echo -e "${RED}VTune 运行失败${NC}"
-            echo -e "${YELLOW}请尝试运行权限配置脚本:${NC}"
-            echo -e "  ${CYAN}sudo ./scripts/setup_vtune_permissions.sh${NC}"
-            return 1
-        }
-    fi
+    # 运行分析
+    eval $vtune_cmd
 
     # 记录结束时间
     END_TIME=$(date +%s)
