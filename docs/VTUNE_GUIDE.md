@@ -105,11 +105,11 @@ cmake --build build -j $(nproc)
 
 ```bash
 # 检查可执行文件是否包含调试符号
-file build/Potter
+file build/route
 # 应该看到: with debug_info, not stripped
 
 # 查看符号表
-nm build/Potter | grep -i "astarroute"
+nm build/route | grep -i "astarroute"
 # 应该看到函数符号
 ```
 
@@ -438,7 +438,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=icpx
 cmake --build build
 
 # 验证符号
-nm build/Potter | grep aStarRoute
+nm build/route | grep aStarRoute
 ```
 
 ### Q2: VTune 分析失败，提示 "Sampling driver not loaded"

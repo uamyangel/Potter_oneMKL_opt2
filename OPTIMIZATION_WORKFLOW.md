@@ -179,9 +179,9 @@ cmake --build build -j 80
 ```bash
 # 使用相同的测试用例和线程数
 cd build
-time ./Potter -i ../benchmarks/fpga24_mcnc_processed/koios_dla_like_large.phys \
-              -o output.phys \
-              -t 80
+time ./route -i ../benchmarks/fpga24_mcnc_processed/koios_dla_like_large.phys \
+             -o output.phys \
+             -t 80
 ```
 
 ### 3. 重新运行 VTune 分析

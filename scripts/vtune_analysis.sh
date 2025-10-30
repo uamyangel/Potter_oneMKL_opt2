@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 # 默认配置
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${PROJECT_ROOT}/build"
-EXECUTABLE="${BUILD_DIR}/Potter"
+EXECUTABLE="${BUILD_DIR}/route"  # 实际可执行文件名是 route
 VTUNE_RESULTS_DIR="${PROJECT_ROOT}/vtune_results"
 ANALYSIS_TYPE="hotspots"  # 默认分析类型
 THREADS=80  # 默认线程数
