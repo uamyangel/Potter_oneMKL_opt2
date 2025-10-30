@@ -25,11 +25,11 @@ ANALYSIS_TYPE="hotspots"  # 默认分析类型
 THREADS=80  # 默认线程数
 
 # 基准测试用例
-BENCHMARK_DIR="${PROJECT_ROOT}/benchmarks/fpga24_mcnc_processed"
+BENCHMARK_DIR="${PROJECT_ROOT}/benchmarks"
 BENCHMARK_CASES=(
-    "koios_dla_like_large.phys"
-    "mlcad_d181_lefttwo3rds.phys"
-    "ispd16_example2.phys"
+    "koios_dla_like_large_unrouted.phys"
+    "mlcad_d181_lefttwo3rds_unrouted.phys"
+    "ispd16_example2_unrouted.phys"
 )
 
 ###############################################################################
