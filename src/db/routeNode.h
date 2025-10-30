@@ -10,18 +10,27 @@ class RouteNode
 {
 public:
 	// RouteNode(){}
-	RouteNode(obj_idx id_, short beginTileXCoordinate_, short beginTileYCoordinate_, short endTileXCoordinate_, short endTileYCoordinate_, float baseCost_, short length_, NodeType type_, bool isNodePinBounce_) : 
-		id(id_), 
-		beginTileXCoordinate(beginTileXCoordinate_), 
-		beginTileYCoordinate(beginTileYCoordinate_), 
-		endTileXCoordinate(endTileXCoordinate_), 
-		endTileYCoordinate(endTileYCoordinate_), 
-		baseCost(baseCost_), 
-		length(length_), 
+	RouteNode(obj_idx id_, short beginTileXCoordinate_, short beginTileYCoordinate_, short endTileXCoordinate_, short endTileYCoordinate_, float baseCost_, short length_, NodeType type_, bool isNodePinBounce_) :
+		id(id_),
+		beginTileXCoordinate(beginTileXCoordinate_),
+		beginTileYCoordinate(beginTileYCoordinate_),
+		endTileXCoordinate(endTileXCoordinate_),
+		endTileYCoordinate(endTileYCoordinate_),
+		baseCost(baseCost_),
+		length(length_),
 		type(type_),
-		isNodePinBounce(isNodePinBounce_){}
-	RouteNode() {}
-	RouteNode(const RouteNode& that) {};
+		isNodePinBounce(isNodePinBounce_){
+		// Pre-allocate space for children to avoid frequent reallocations
+		// FPGA routing graph: typical node has 2-6 children
+		children.reserve(8);
+	}
+	RouteNode() {
+		// Pre-allocate for default constructor as well
+		children.reserve(8);
+	}
+	RouteNode(const RouteNode& that) {
+		children.reserve(8);
+	};
 	obj_idx getId() const {return id;}
 	short getCapacity() const {return NODE_CAPACITY;}
 	short getEndTileXCoordinate() const {return endTileXCoordinate;}
@@ -67,13 +76,21 @@ public:
 	void setHistoricalCongestionCost(float cost) {historicalCongestionCost = cost;}
 
 	// methods for usersConnectionCounts
-	// int getOccupancy() const {return occupancy;}
-	int getOccupancy() const {return occupancy.load();}
-	
+	// Optimized: Use relaxed memory order for high-frequency reads
+	// The routing algorithm is heuristic and tolerates minor inconsistencies
+	int getOccupancy() const {
+		return occupancy.load(std::memory_order_relaxed);
+	}
+
 	bool isOverUsed () const {return NODE_CAPACITY < getOccupancy();}
 
-	void incrementOccupancy() {occupancy ++;} 
-	void decrementOccupancy() {occupancy --;}
+	// Relaxed increments: still atomic but much faster
+	void incrementOccupancy() {
+		occupancy.fetch_add(1, std::memory_order_relaxed);
+	}
+	void decrementOccupancy() {
+		occupancy.fetch_sub(1, std::memory_order_relaxed);
+	}
 
 	void setNeedUpdateBatchStamp(int batchStamp) {needUpdateBatchStamp = batchStamp;}
 	int getNeedUpdateBatchStamp() const {return needUpdateBatchStamp;}
@@ -123,7 +140,7 @@ private:
 };
 
 class NodeInfo {
-private: 
+private:
 	int occChange;
 	int occChangeBatchStamp; // iter * numBatches + batchId
 public:
@@ -135,8 +152,18 @@ public:
 
 	NodeInfo(): prev(nullptr), cost(0), partialCost(0), isVisited(-1), isTarget(-1), occChange(0), occChangeBatchStamp(-1) {}
 
+	// Optimized: Fast reset without full reconstruction
+	inline void reset() {
+		prev = nullptr;
+		cost = 0;
+		partialCost = 0;
+		isVisited = -1;
+		isTarget = -1;
+		// Note: occChange and occChangeBatchStamp are managed separately
+	}
+
 	void erase() {
-		prev = nullptr; cost = 0; partialCost = 0; isVisited = -1; isTarget = -1;
+		reset();  // Use the optimized reset method
 	}
 
 	void write(RouteNode* prev_, double cost_, double partialCost_, int isVisited_, int isTarget_) {
