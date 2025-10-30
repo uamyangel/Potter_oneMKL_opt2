@@ -115,14 +115,52 @@ target_link_options(route PRIVATE -qopenmp)
 target_compile_definitions(route PRIVATE USE_ONEMKL)
 
 # Step 8: Add performance optimization flags for Intel icpx
+# Configure build type specific flags
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+endif()
+
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+
+# Base optimization flags for all build types
 target_compile_options(route PRIVATE
-    -O3                          # Maximum optimization
     -march=native                # Use all CPU instructions available
     -mtune=native                # Tune for current CPU
     -fno-semantic-interposition  # Better optimization across translation units
-    -finline-functions           # Aggressive function inlining
-    -funroll-loops               # Loop unrolling
 )
+
+# Build type specific flags
+if(CMAKE_BUILD_TYPE MATCHES "Release")
+    target_compile_options(route PRIVATE
+        -O3                      # Maximum optimization
+        -finline-functions       # Aggressive function inlining
+        -funroll-loops           # Loop unrolling
+    )
+    message(STATUS "  Optimization: -O3 (Release mode)")
+
+elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+    # RelWithDebInfo: Optimized build with debug symbols for profiling (VTune, perf, etc.)
+    target_compile_options(route PRIVATE
+        -O3                      # Maximum optimization
+        -g                       # Debug symbols for profiling
+        -gline-tables-only       # Minimal debug info (faster compile, good for profiling)
+        -fdebug-info-for-profiling  # Additional profiling info
+        -finline-functions       # Aggressive function inlining
+        -funroll-loops           # Loop unrolling
+    )
+    # Ensure linker also includes debug info
+    target_link_options(route PRIVATE -g)
+    message(STATUS "  Optimization: -O3 -g (RelWithDebInfo mode - for VTune profiling)")
+    message(STATUS "  ✓ Debug symbols enabled for Intel VTune / perf profiling")
+
+elseif(CMAKE_BUILD_TYPE MATCHES "Debug")
+    target_compile_options(route PRIVATE
+        -O0                      # No optimization
+        -g                       # Full debug symbols
+    )
+    target_link_options(route PRIVATE -g)
+    message(STATUS "  Optimization: -O0 -g (Debug mode)")
+endif()
 
 # Optional: Disable AVX-512 if thermal throttling is a concern
 # Uncomment the line below if CPU frequency drops during execution
