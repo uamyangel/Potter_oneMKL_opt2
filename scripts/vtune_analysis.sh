@@ -208,28 +208,11 @@ run_vtune_analysis() {
         rm -rf "$result_dir"
     fi
 
-    # 构建 VTune 命令
+    # 构建 VTune 命令（使用默认配置，VTune 2025 版本更智能）
     local vtune_cmd="vtune -collect ${analysis_type}"
     vtune_cmd="$vtune_cmd -result-dir ${result_dir}"
-    vtune_cmd="$vtune_cmd -knob sampling-interval=1"  # 1ms 采样间隔
 
-    # 根据分析类型添加特定选项
-    case $analysis_type in
-        "hotspots")
-            vtune_cmd="$vtune_cmd -knob enable-stack-collection=true"
-            vtune_cmd="$vtune_cmd -knob enable-characterization-insights=true"
-            ;;
-        "memory-access")
-            vtune_cmd="$vtune_cmd -knob analyze-mem-objects=true"
-            vtune_cmd="$vtune_cmd -knob dram-bandwidth-limits=true"
-            ;;
-        "threading")
-            vtune_cmd="$vtune_cmd -knob enable-characterization-insights=true"
-            ;;
-        "uarch-exploration")
-            vtune_cmd="$vtune_cmd -knob sampling-interval=1"
-            ;;
-    esac
+    # VTune 2025 会自动选择最佳配置，不需要手动指定太多 knob
 
     # 添加应用程序命令
     vtune_cmd="$vtune_cmd -- ${EXECUTABLE}"
