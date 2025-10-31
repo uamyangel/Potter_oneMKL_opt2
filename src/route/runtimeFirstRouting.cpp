@@ -236,8 +236,8 @@ void aStarRoute::regionBasedPartition() {
 
 	/* second schedule */
 
-	// initialize numBatches
-	numBatches = (database.nets.size() - labeledNetIds.size()) / (64 * numThread);
+	// 优化：增加每批次网络数量（64→512），减少同步次数
+	numBatches = std::max(16, (int)((database.nets.size() - labeledNetIds.size()) / (512 * numThread)));
 	log() << "numBatches: " << numBatches << " database.nets.size " << database.nets.size() << endl;
 
 	netIdBatchesForThreads.clear();

@@ -6,7 +6,8 @@
 
 #define NODE_CAPACITY 1
 // class RouteNode;
-class RouteNode
+// 优化：64字节缓存行对齐，减少假共享和缓存未命中
+class alignas(64) RouteNode
 {
 public:
 	// RouteNode(){}
@@ -96,27 +97,26 @@ public:
 	int getNeedUpdateBatchStamp() const {return needUpdateBatchStamp;}
 
 private:
+	// 优化：热数据区（频繁访问的字段放在前面，提高缓存命中率）
+	std::atomic<int> occupancy;              // 最频繁访问：每次路由都读写
+	int needUpdateBatchStamp = -1;           // 频繁访问：批次更新检查
+	float presentCongestionCost = 1;         // 频繁访问：成本计算
+	float historicalCongestionCost = 1;      // 频繁访问：成本计算
+
+	// 冷数据区（初始化后很少改变的字段）
 	obj_idx id;
-	// short capacity = 1;
 	short endTileXCoordinate;
 	short endTileYCoordinate;
 	short beginTileXCoordinate;
 	short beginTileYCoordinate;
 	short length = 1;
-	bool isAccessibleWire;
 	float baseCost;
 	NodeType type;
+	bool isAccessibleWire;
 	bool isNodePinBounce;
 
-	int needUpdateBatchStamp = -1;
-
-	// graph
+	// 大对象（放在最后）
 	std::vector<RouteNode*> children;
-	// int occupancy;
-	std::atomic<int> occupancy;
-	
-	float presentCongestionCost = 1;
-	float historicalCongestionCost = 1;
 
 	friend class boost::serialization::access;
 	template<class Archive>

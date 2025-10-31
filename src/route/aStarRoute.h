@@ -49,7 +49,7 @@ private:
 	bool useParallel = true;
 	int numThread = 16;
 	int currentBatchStamp = -1;
-	int numBatches = 256;
+	int numBatches = 16;  // 优化：减少批次数量以降低全局同步开销（从256降至16）
 	float presentCongestionMultiplier = 2;
 	float maxPresentCongestionFactor = 1000000;
 
