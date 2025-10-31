@@ -86,9 +86,9 @@ run_single_test() {
         -t "$THREADS" \
         > "${result_file}" 2>&1
 
-    # 提取路由时间
-    local route_time=$(grep "Total route time:" "${result_file}" | awk '{print $4}')
-    local elapsed_time=$(grep "Elapsed:" "${result_file}" | awk '{print $2}')
+    # 提取路由时间（禁用颜色输出避免awk解析错误）
+    local route_time=$(grep --color=never "Total route time:" "${result_file}" | awk '{print $4}')
+    local elapsed_time=$(grep --color=never "Elapsed:" "${result_file}" | tail -1 | awk '{print $2}')
 
     echo "$route_time $elapsed_time"
 }
@@ -130,9 +130,9 @@ run_benchmark() {
                 elapsed_time=$(echo "$elapsed_time" | awk -F: '{print $1 * 60 + $2}')
             fi
 
-            # 使用awk代替bc进行浮点数累加，避免格式问题
-            total_route_time=$(awk "BEGIN {print $total_route_time + $route_time}")
-            total_elapsed_time=$(awk "BEGIN {print $total_elapsed_time + $elapsed_time}")
+            # 使用awk -v参数传递变量，避免特殊字符和ANSI代码问题
+            total_route_time=$(awk -v t="$total_route_time" -v r="$route_time" 'BEGIN {print t + r}')
+            total_elapsed_time=$(awk -v t="$total_elapsed_time" -v e="$elapsed_time" 'BEGIN {print t + e}')
             valid_runs=$((valid_runs + 1))
 
             echo -e "${GREEN}    ✓ 路由时间: ${route_time}s, 总耗时: ${elapsed_time}s${NC}"
@@ -143,9 +143,9 @@ run_benchmark() {
 
     # 计算平均值
     if [ $valid_runs -gt 0 ]; then
-        # 使用awk代替bc，确保输出正确的浮点数格式
-        local avg_route_time=$(awk "BEGIN {printf \"%.2f\", $total_route_time / $valid_runs}")
-        local avg_elapsed_time=$(awk "BEGIN {printf \"%.2f\", $total_elapsed_time / $valid_runs}")
+        # 使用awk -v参数传递变量，确保正确处理浮点数
+        local avg_route_time=$(awk -v t="$total_route_time" -v n="$valid_runs" 'BEGIN {printf "%.2f", t / n}')
+        local avg_elapsed_time=$(awk -v t="$total_elapsed_time" -v n="$valid_runs" 'BEGIN {printf "%.2f", t / n}')
 
         echo -e ""
         echo -e "${GREEN}平均路由时间: ${avg_route_time}s${NC}"
