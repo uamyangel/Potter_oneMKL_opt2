@@ -126,13 +126,13 @@ run_benchmark() {
 
             # 转换时间为秒（从 MM:SS 格式）
             if [[ $elapsed_time == *:* ]]; then
-                local mins=$(echo $elapsed_time | cut -d: -f1)
-                local secs=$(echo $elapsed_time | cut -d: -f2)
-                elapsed_time=$(echo "$mins * 60 + $secs" | bc)
+                # 使用awk代替bc，避免locale问题
+                elapsed_time=$(echo "$elapsed_time" | awk -F: '{print $1 * 60 + $2}')
             fi
 
-            total_route_time=$(echo "$total_route_time + $route_time" | bc)
-            total_elapsed_time=$(echo "$total_elapsed_time + $elapsed_time" | bc)
+            # 使用awk代替bc进行浮点数累加，避免格式问题
+            total_route_time=$(awk "BEGIN {print $total_route_time + $route_time}")
+            total_elapsed_time=$(awk "BEGIN {print $total_elapsed_time + $elapsed_time}")
             valid_runs=$((valid_runs + 1))
 
             echo -e "${GREEN}    ✓ 路由时间: ${route_time}s, 总耗时: ${elapsed_time}s${NC}"
@@ -143,8 +143,9 @@ run_benchmark() {
 
     # 计算平均值
     if [ $valid_runs -gt 0 ]; then
-        local avg_route_time=$(echo "scale=2; $total_route_time / $valid_runs" | bc)
-        local avg_elapsed_time=$(echo "scale=2; $total_elapsed_time / $valid_runs" | bc)
+        # 使用awk代替bc，确保输出正确的浮点数格式
+        local avg_route_time=$(awk "BEGIN {printf \"%.2f\", $total_route_time / $valid_runs}")
+        local avg_elapsed_time=$(awk "BEGIN {printf \"%.2f\", $total_elapsed_time / $valid_runs}")
 
         echo -e ""
         echo -e "${GREEN}平均路由时间: ${avg_route_time}s${NC}"

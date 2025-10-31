@@ -6,8 +6,9 @@
 
 #define NODE_CAPACITY 1
 // class RouteNode;
-// 优化：64字节缓存行对齐，减少假共享和缓存未命中
-class alignas(64) RouteNode
+// 注意：移除了 alignas(64) 因为会导致内存占用增加33%，缓存利用率下降
+// 保留成员变量重排（热数据在前）以提高缓存命中率
+class RouteNode
 {
 public:
 	// RouteNode(){}
