@@ -152,8 +152,8 @@ void aStarRoute::kmeansBasedPartition() {
 		netIdsForThreads[labels[i]].emplace_back(netIdsToPartition[i]);
 	}
 
-	// 优化：增加每批次网络数量（256→1024），减少同步次数
-	numBatches = std::max(16, (int)((database.nets.size() - labeledNetIds.size()) / (1024 * numThread)));
+	// 保持原值：测试显示增加批次大小会导致负载不均
+	numBatches = (database.nets.size() - labeledNetIds.size()) / (256 * numThread);
 	netIdBatchesForThreads.resize(numBatches);
 	for (int batchId = 0; batchId < numBatches; batchId ++) {
 		netIdBatchesForThreads[batchId].resize(numThread);
