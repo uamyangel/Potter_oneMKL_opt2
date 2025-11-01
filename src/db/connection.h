@@ -84,7 +84,8 @@ public:
 		assert_t(userConnectionToDecrement[rnode] <= usersConnectionCounts[rnode]);
 	}
 
-	void updatePreDecrement(int batchStamp) {
+	// 优化：返回被修改节点的ID列表
+	void updatePreDecrement(int batchStamp, std::vector<int>* modifiedNodeIds = nullptr) {
 		for (auto iter = userConnectionToDecrement.begin(); iter != userConnectionToDecrement.end(); iter ++) {
 			RouteNode* rnode = iter->first;
 			int cnt = iter->second;
@@ -97,8 +98,12 @@ public:
 			if (isErased) {
 				rnode->decrementOccupancy();
 				rnode->setNeedUpdateBatchStamp(batchStamp);
+				// 记录被修改的节点ID
+				if (modifiedNodeIds) {
+					modifiedNodeIds->push_back(rnode->getId());
+				}
 			}
-			 
+
 		}
 	}
 
@@ -123,7 +128,8 @@ public:
 		}
 	}
 
-	void updatePreIncrement(int batchStamp) {
+	// 优化：返回被修改节点的ID列表
+	void updatePreIncrement(int batchStamp, std::vector<int>* modifiedNodeIds = nullptr) {
 		for (auto iter = userConnectionToIncrement.begin(); iter != userConnectionToIncrement.end(); iter ++) {
 			RouteNode* rnode = iter->first;
 			int cnt = iter->second;
@@ -136,6 +142,10 @@ public:
 			if (newlyAdd) {
 				rnode->incrementOccupancy();
 				rnode->setNeedUpdateBatchStamp(batchStamp);
+				// 记录被修改的节点ID
+				if (modifiedNodeIds) {
+					modifiedNodeIds->push_back(rnode->getId());
+				}
 			}
 		}
 	}
