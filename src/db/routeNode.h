@@ -57,7 +57,7 @@ public:
 	}
 
 	// 仅用于遍历，返回内联数组或overflow vector
-	const RouteNode** getInlineChildrenPtr() const { return (const RouteNode**)inlineChildren; }
+	RouteNode** getInlineChildrenPtr() const { return const_cast<RouteNode**>(inlineChildren); }
 	uint8_t getInlineSize() const { return inlineSize; }
 	const std::vector<RouteNode*>& getOverflowChildren() const { return overflowChildren; }
 

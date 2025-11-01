@@ -511,10 +511,10 @@ bool aStarRoute::routeOneConnection(int connectionId, int tid, bool sync)
 
 		// Optimized: Iterate inline children first (avoids heap allocation in 90% of cases)
 		// Process inline children
-		const RouteNode** inlineChildrenPtr = rnode->getInlineChildrenPtr();
+		RouteNode** inlineChildrenPtr = rnode->getInlineChildrenPtr();
 		uint8_t inlineSize = rnode->getInlineSize();
 		for (uint8_t i = 0; i < inlineSize; i++) {
-			auto childRNode = inlineChildrenPtr[i];
+			RouteNode* childRNode = inlineChildrenPtr[i];
 			// childInfoIdx = nodeInfos.getIndex(childRNode);
 			NodeInfo& childInfo = nodeInfos[childRNode->getId()];
 			bool isVisited = (childInfo.isVisited == connectionUniqueId);
