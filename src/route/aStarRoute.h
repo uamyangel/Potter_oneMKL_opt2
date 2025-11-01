@@ -97,11 +97,6 @@ private:
 	vector<vector<NodeInfo>> nodeInfosForThreads;
 	vector<vector<int>> occChangeForThreads;
 
-	// 优化：追踪需要更新的节点，避免遍历所有2800万节点
-	// modifiedNodeIds[batchId] = 在该批次中被修改的节点ID列表
-	vector<vector<int>> modifiedNodeIds;
-	std::mutex modifiedNodesMutex;  // 保护并发写入
-
 	// region-based partitioning ->
 	PartitionBBox device;
 	vector<vector<PartitionBBox*>> levels;

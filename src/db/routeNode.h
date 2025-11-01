@@ -13,6 +13,7 @@ class RouteNode
 public:
 	// RouteNode(){}
 	RouteNode(obj_idx id_, short beginTileXCoordinate_, short beginTileYCoordinate_, short endTileXCoordinate_, short endTileYCoordinate_, float baseCost_, short length_, NodeType type_, bool isNodePinBounce_) :
+		occupancy(0),
 		id(id_),
 		beginTileXCoordinate(beginTileXCoordinate_),
 		beginTileYCoordinate(beginTileYCoordinate_),
@@ -21,17 +22,15 @@ public:
 		baseCost(baseCost_),
 		length(length_),
 		type(type_),
-		isNodePinBounce(isNodePinBounce_){
-		// Pre-allocate space for children to avoid frequent reallocations
-		// FPGA routing graph: typical node has 2-6 children
-		children.reserve(8);
+		isNodePinBounce(isNodePinBounce_),
+		inlineSize(0) {
+		// SVO: No need to reserve - using inline storage for first 8 children
 	}
-	RouteNode() {
-		// Pre-allocate for default constructor as well
-		children.reserve(8);
+	RouteNode() : occupancy(0), inlineSize(0) {
+		// SVO: No need to reserve - using inline storage for first 8 children
 	}
-	RouteNode(const RouteNode& that) {
-		children.reserve(8);
+	RouteNode(const RouteNode& that) : occupancy(0), inlineSize(0) {
+		// Copy constructor: caller needs to explicitly copy children if needed
 	};
 	obj_idx getId() const {return id;}
 	short getCapacity() const {return NODE_CAPACITY;}
@@ -45,9 +44,24 @@ public:
 	NodeType getNodeType() const {return type;}
 	bool getIsNodePinBounce() const {return isNodePinBounce;}
 
-	std::vector<RouteNode*> getChildren() const {return children;}
-	std::vector<RouteNode*>& getChildrenByRef() {return children;}
-	int getChildrenSize() const {return children.size();}
+	// 优化：Small Vector Optimization - 内联存储前8个子节点
+	std::vector<RouteNode*> getChildren() const {
+		std::vector<RouteNode*> result;
+		if (inlineSize > 0) {
+			result.insert(result.end(), inlineChildren, inlineChildren + inlineSize);
+		}
+		if (!overflowChildren.empty()) {
+			result.insert(result.end(), overflowChildren.begin(), overflowChildren.end());
+		}
+		return result;
+	}
+
+	// 仅用于遍历，返回内联数组或overflow vector
+	const RouteNode** getInlineChildrenPtr() const { return (const RouteNode**)inlineChildren; }
+	uint8_t getInlineSize() const { return inlineSize; }
+	const std::vector<RouteNode*>& getOverflowChildren() const { return overflowChildren; }
+
+	int getChildrenSize() const {return inlineSize + overflowChildren.size();}
 
 	float getPresentCongestionCost() const {return presentCongestionCost;}
 	float getHistoricalCongestionCost() const {return historicalCongestionCost;}
@@ -62,9 +76,28 @@ public:
 	void setBaseCost(float v) {baseCost = v;}
 	void setIsNodePinBounce(bool v) {isNodePinBounce = v;}
 
-	void setChildren(std::vector<RouteNode*> cs) {children = cs;}
-	void clearChildren() {children.clear();}
-	void addChildren(RouteNode* c) {children.emplace_back(c);}
+	void setChildren(std::vector<RouteNode*> cs) {
+		inlineSize = 0;
+		overflowChildren.clear();
+		for (auto* child : cs) {
+			addChildren(child);
+		}
+	}
+
+	void clearChildren() {
+		inlineSize = 0;
+		overflowChildren.clear();
+	}
+
+	// 优化：Small Vector Optimization - 优先使用内联存储
+	void addChildren(RouteNode* c) {
+		if (inlineSize < INLINE_CAPACITY) {
+			inlineChildren[inlineSize++] = c;
+		} else {
+			overflowChildren.push_back(c);
+		}
+	}
+
 	void setNodeType(NodeType t) {type = t;}
 
 	void setPresentCongestionCost(float cost) {presentCongestionCost = cost;}
@@ -98,6 +131,9 @@ public:
 	int getNeedUpdateBatchStamp() const {return needUpdateBatchStamp;}
 
 private:
+	// Small Vector Optimization: 内联存储前N个子节点
+	static constexpr uint8_t INLINE_CAPACITY = 8;
+
 	// 优化：热数据区（频繁访问的字段放在前面，提高缓存命中率）
 	std::atomic<int> occupancy;              // 最频繁访问：每次路由都读写
 	int needUpdateBatchStamp = -1;           // 频繁访问：批次更新检查
@@ -116,8 +152,10 @@ private:
 	bool isAccessibleWire;
 	bool isNodePinBounce;
 
-	// 大对象（放在最后）
-	std::vector<RouteNode*> children;
+	// Small Vector Optimization: 内联数组 + overflow vector
+	RouteNode* inlineChildren[INLINE_CAPACITY];
+	uint8_t inlineSize = 0;
+	std::vector<RouteNode*> overflowChildren;
 
 	friend class boost::serialization::access;
 	template<class Archive>

@@ -507,7 +507,14 @@ bool aStarRoute::routeOneConnection(int connectionId, int tid, bool sync)
 		assert_t(rnode != nullptr);
 
 		int childInfoIdx = -1;
-		for (auto childRNode : rnode->getChildren()) {
+		bool targetFound = false;
+
+		// Optimized: Iterate inline children first (avoids heap allocation in 90% of cases)
+		// Process inline children
+		const RouteNode** inlineChildrenPtr = rnode->getInlineChildrenPtr();
+		uint8_t inlineSize = rnode->getInlineSize();
+		for (uint8_t i = 0; i < inlineSize; i++) {
+			auto childRNode = inlineChildrenPtr[i];
 			// childInfoIdx = nodeInfos.getIndex(childRNode);
 			NodeInfo& childInfo = nodeInfos[childRNode->getId()];
 			bool isVisited = (childInfo.isVisited == connectionUniqueId);
@@ -520,13 +527,14 @@ bool aStarRoute::routeOneConnection(int connectionId, int tid, bool sync)
 			if (isTarget && childRNode == connection.getSinkRNode()) {
 				targetRNode = childRNode;
 				childInfo.prev = rnode;
+				targetFound = true;
 				break;
 			}
 
 			if (!isAccessible(childRNode, connectionId)) {
 				continue; // Note: different from rwroute, the boundary nodes are included
 			}
-				
+
 			switch (childRNode->getNodeType())
 			{
 			case WIRE:
@@ -534,7 +542,7 @@ bool aStarRoute::routeOneConnection(int connectionId, int tid, bool sync)
 					continue;
 				}
 				break; // In rwroute, use UTurn by default
-			case PINBOUNCE:	
+			case PINBOUNCE:
                 assert_t(!isTarget);
                 if (!isAccessiblePinbounce(childRNode, connection)) {
                     continue;
@@ -547,7 +555,7 @@ bool aStarRoute::routeOneConnection(int connectionId, int tid, bool sync)
 				break;
 			case LAGUNA_I:
 				continue; // never
-				break; 
+				break;
 			case SUPER_LONG_LINE:
 				exit(0); // never
 				break;
@@ -581,6 +589,86 @@ bool aStarRoute::routeOneConnection(int connectionId, int tid, bool sync)
 			double distanceToSink = deltaX + deltaY;
 	        double newTotalPathCost = newPartialPathCost + estWLWeight * distanceToSink / sharingFactor;
 			push(childRNode, rnode, newTotalPathCost, newPartialPathCost, -1);
+		}
+
+		// Process overflow children (only if inline storage was exceeded)
+		if (!targetFound) {
+			const std::vector<RouteNode*>& overflowChildren = rnode->getOverflowChildren();
+			for (auto childRNode : overflowChildren) {
+				// childInfoIdx = nodeInfos.getIndex(childRNode);
+				NodeInfo& childInfo = nodeInfos[childRNode->getId()];
+				bool isVisited = (childInfo.isVisited == connectionUniqueId);
+				bool isTarget = (childInfo.isTarget == connectionUniqueId);
+
+				if (isVisited) {
+					continue;
+				}
+
+				if (isTarget && childRNode == connection.getSinkRNode()) {
+					targetRNode = childRNode;
+					childInfo.prev = rnode;
+					break;
+				}
+
+				if (!isAccessible(childRNode, connectionId)) {
+					continue; // Note: different from rwroute, the boundary nodes are included
+				}
+
+				switch (childRNode->getNodeType())
+				{
+				case WIRE:
+					if (!database.routingGraph.isAccessible(childRNode, connection)) {
+						continue;
+					}
+					break; // In rwroute, use UTurn by default
+				case PINBOUNCE:
+	                assert_t(!isTarget);
+	                if (!isAccessiblePinbounce(childRNode, connection)) {
+	                    continue;
+	                }
+					break;
+				case PINFEED_I:
+	                if (!isAccessiblePinfeedI(childRNode, connection, isTarget)) {
+	                    continue;
+	                }
+					break;
+				case LAGUNA_I:
+					continue; // never
+					break;
+				case SUPER_LONG_LINE:
+					exit(0); // never
+					break;
+				default:
+					assert_t(false && "Unexpected rnode type");
+					break;
+				}
+				// evaluate cost and push
+				int countSourceUsesOrigin = net.countConnectionsOfUser(childRNode);
+				int countSourceUses = countSourceUsesOrigin;
+				int occChange = 0;
+				if (sync) {
+					countSourceUses = countSourceUses - net.getPreDecrementUser(childRNode) + net.getPreIncrementUser(childRNode);
+					occChange = childInfo.getOccChange(currentBatchStamp);
+				}
+				double sharingFactor = 1 + sharingWeight * countSourceUses;
+				double nodeCost = getNodeCost(childRNode, connection, occChange, countSourceUses, countSourceUsesOrigin, sharingFactor, isTarget, tid);
+				assert_t(nodeCost >= 0);
+				// double newPartialPathCost = ninfo.partialCost + rnodeCostWeight * nodeCost + rnodeWLWeight * childRNode->getLength() / sharingFactor;
+				double newPartialPathCost = ninfo_partialCost + rnodeCostWeight * nodeCost + rnodeWLWeight * childRNode->getLength() / sharingFactor;
+
+				int childX = childRNode->getEndTileXCoordinate();
+		        int childY = childRNode->getEndTileYCoordinate();
+		        auto sinkRNode = connection.getSinkRNode();
+		        int sinkX = sinkRNode->getBeginTileXCoordinate();
+		        int sinkY = sinkRNode->getBeginTileYCoordinate();
+		        // HOT PATH: Manhattan distance calculation in A* search innermost loop
+		        int deltaX = mkl_utils::scalar_abs(childX - sinkX);
+		        int deltaY = mkl_utils::scalar_abs(childY - sinkY);
+
+				double distanceToSink = deltaX + deltaY;
+		        double newTotalPathCost = newPartialPathCost + estWLWeight * distanceToSink / sharingFactor;
+				push(childRNode, rnode, newTotalPathCost, newPartialPathCost, -1);
+			}
 		}
 		if (targetRNode != nullptr)
 			break;

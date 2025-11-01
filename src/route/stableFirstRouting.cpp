@@ -118,46 +118,21 @@ void aStarRoute::routeWorker(vector<int>& netIds, int tid) {
  * @param tid ID of the worker thread
  */
 void aStarRoute::updateNetsWorker(vector<int>& netIds, int tid) {
-	// 优化：收集被修改的节点ID
-	std::vector<int> localModifiedNodes;
-	localModifiedNodes.reserve(netIds.size() * 4);  // 粗略估计每个net平均影响4个节点
-
 	for (int netId: netIds) {
 		assert_t(netId >= 0 && netId < database.nets.size());
 		auto& net = database.nets[netId];
-		net.updatePreIncrement(currentBatchStamp, &localModifiedNodes);
-		net.updatePreDecrement(currentBatchStamp, &localModifiedNodes);
-	}
-
-	// 合并到全局列表（加锁保护）
-	if (!localModifiedNodes.empty()) {
-		std::lock_guard<std::mutex> lock(modifiedNodesMutex);
-		auto& currentBatchModified = modifiedNodeIds[currentBatchStamp % numBatches];
-		currentBatchModified.insert(currentBatchModified.end(),
-		                             localModifiedNodes.begin(),
-		                             localModifiedNodes.end());
+		net.updatePreIncrement(currentBatchStamp);
+		net.updatePreDecrement(currentBatchStamp);
 	}
 };
 
 void aStarRoute::updatePresentCongCostWorker(int tid) {
 	std::vector<RouteNode>& routeNodes = database.routingGraph.routeNodes;
-
-	// 优化：只遍历被修改的节点，而不是所有2800万节点
-	auto& currentBatchModified = modifiedNodeIds[currentBatchStamp % numBatches];
-
-	// 多线程并行处理修改节点列表
-	for (size_t i = tid; i < currentBatchModified.size(); i += numThread) {
-		int rnodeId = currentBatchModified[i];
+	for (int rnodeId = tid; rnodeId < database.numNodes; rnodeId += numThread) {
 		RouteNode& rnode = routeNodes[rnodeId];
-		// 双重检查：确保节点确实需要更新（避免重复ID）
 		if (rnode.getNeedUpdateBatchStamp() == currentBatchStamp) {
 			rnode.updatePresentCongestionCost(presentCongestionFactor);
 		}
-	}
-
-	// 主线程负责清空列表，为下一个批次做准备
-	if (tid == 0) {
-		currentBatchModified.clear();
 	}
 }
 
@@ -183,10 +158,6 @@ void aStarRoute::kmeansBasedPartition() {
 	for (int batchId = 0; batchId < numBatches; batchId ++) {
 		netIdBatchesForThreads[batchId].resize(numThread);
 	}
-
-	// 优化：初始化修改节点追踪列表
-	modifiedNodeIds.clear();
-	modifiedNodeIds.resize(numBatches);
 	
 	for (int tid = 0; tid < numThread; tid++) {
 		int xmin = 2 * database.device.getDeviceXMax() + 1;
