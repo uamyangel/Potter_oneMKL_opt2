@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ###############################################################################
-# Potter 基准测试脚本 - 优化版
-# 特性: 实时进度、超时保护、即时反馈
+# Potter 基准测试脚本
+# 特性: 实时进度、即时反馈
 ###############################################################################
 
 # 配置
@@ -14,7 +14,6 @@ BENCHMARK_CASES=(
 RUNS=3
 THREADS=80
 DEVICE="xcvu3p.device"
-TIMEOUT=600  # 10分钟超时
 
 # MKL环境变量
 export MKL_NUM_THREADS=1
@@ -56,50 +55,36 @@ LOG_DIR="$PROJECT_ROOT/benchmark_logs"
 mkdir -p "$LOG_DIR"
 
 ###############################################################################
-# 带超时的执行函数
+# 执行函数 - 显示进度
 ###############################################################################
-run_with_timeout() {
+run_with_progress() {
     local cmd=$1
-    local timeout=$2
-    local log_file=$3
+    local log_file=$2
 
     # 后台启动命令
     eval $cmd > "$log_file" 2>&1 &
     local pid=$!
 
-    # 后台启动日志监控
-    tail -f "$log_file" 2>/dev/null &
-    local tail_pid=$!
-
-    # 监控执行
+    # 监控执行 - 显示进度
     local elapsed=0
+
+    echo -e "${CYAN}  进度:${NC}" >&2
+
     while kill -0 $pid 2>/dev/null; do
         sleep 1
         elapsed=$((elapsed + 1))
 
         # 每5秒显示进度
         if [ $((elapsed % 5)) -eq 0 ]; then
-            echo -ne "\r${CYAN}  [运行中: ${elapsed}s]${NC}"
-        fi
-
-        # 检查超时
-        if [ $elapsed -ge $timeout ]; then
-            echo -e "\n${RED}  超时 (${timeout}s) - 终止进程${NC}"
-            kill -9 $pid 2>/dev/null
-            kill $tail_pid 2>/dev/null
-            return 124
+            echo -e "${YELLOW}  [${elapsed}s]${NC} $(tail -2 "$log_file" 2>/dev/null | head -1 | cut -c1-80)" >&2
         fi
     done
-
-    # 停止tail
-    kill $tail_pid 2>/dev/null
-    wait $tail_pid 2>/dev/null
 
     # 获取退出码
     wait $pid
     local exit_code=$?
 
-    echo -e "\r${CYAN}  [完成: ${elapsed}s]${NC}                    "
+    echo -e "${CYAN}  [完成: ${elapsed}s]${NC}" >&2
     return $exit_code
 }
 
@@ -125,13 +110,13 @@ run_benchmark() {
     local input_file="$BENCH_DIR/$case_name"
     local output_file="/tmp/potter_benchmark_output.phys"
 
-    echo ""
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${GREEN}测试用例: $case_name${NC}"
-    echo -e "${BLUE}========================================${NC}"
+    echo "" >&2
+    echo -e "${BLUE}========================================${NC}" >&2
+    echo -e "${GREEN}测试用例: $case_name${NC}" >&2
+    echo -e "${BLUE}========================================${NC}" >&2
 
     if [ ! -f "$input_file" ]; then
-        echo -e "${RED}错误: 找不到输入文件: $input_file${NC}"
+        echo -e "${RED}错误: 找不到输入文件: $input_file${NC}" >&2
         return 1
     fi
 
@@ -140,8 +125,8 @@ run_benchmark() {
     local sum=0
 
     for i in $(seq 1 $RUNS); do
-        echo ""
-        echo -e "${YELLOW}--- Run $i/$RUNS ---${NC}"
+        echo "" >&2
+        echo -e "${YELLOW}--- Run $i/$RUNS ---${NC}" >&2
 
         local log_file="$LOG_DIR/${case_name%.phys}_run${i}.log"
         rm -f "$output_file"
@@ -149,10 +134,10 @@ run_benchmark() {
 
         local cmd="stdbuf -oL -eL $EXECUTABLE -i \"$input_file\" -o \"$output_file\" -d \"$DEVICE\" -t $THREADS"
 
-        echo -e "${CYAN}启动测试 (超时: ${TIMEOUT}s)...${NC}"
-        echo ""
+        echo -e "${CYAN}启动测试...${NC}" >&2
+        echo "" >&2
 
-        if run_with_timeout "$cmd" $TIMEOUT "$log_file"; then
+        if run_with_progress "$cmd" "$log_file"; then
             local route_time=$(extract_time "$log_file")
 
             if [ -n "$route_time" ] && [ "$route_time" != "0" ]; then
@@ -160,33 +145,29 @@ run_benchmark() {
                 sum=$(awk -v s="$sum" -v t="$route_time" 'BEGIN {print s + t}')
                 local avg=$(awk -v s="$sum" -v n="${#times[@]}" 'BEGIN {printf "%.2f", s / n}')
 
-                echo ""
-                echo -e "${GREEN}✓ 成功: ${route_time}s${NC}"
-                echo -e "${CYAN}  当前平均: ${avg}s (${#times[@]} 次运行)${NC}"
+                echo "" >&2
+                echo -e "${GREEN}✓ 成功: ${route_time}s${NC}" >&2
+                echo -e "${CYAN}  当前平均: ${avg}s (${#times[@]} 次运行)${NC}" >&2
             else
                 failed_runs=$((failed_runs + 1))
-                echo ""
-                echo -e "${YELLOW}⚠ 警告: 无法从日志提取时间${NC}"
-                echo -e "${YELLOW}  日志: $log_file${NC}"
+                echo "" >&2
+                echo -e "${YELLOW}⚠ 警告: 无法从日志提取时间${NC}" >&2
+                echo -e "${YELLOW}  日志: $log_file${NC}" >&2
             fi
         else
             local exit_code=$?
             failed_runs=$((failed_runs + 1))
-            echo ""
-            if [ $exit_code -eq 124 ]; then
-                echo -e "${RED}✗ 失败: 超时${NC}"
-            else
-                echo -e "${RED}✗ 失败: 退出码 $exit_code${NC}"
-            fi
-            echo -e "${RED}  日志: $log_file${NC}"
+            echo "" >&2
+            echo -e "${RED}✗ 失败: 退出码 $exit_code${NC}" >&2
+            echo -e "${RED}  日志: $log_file${NC}" >&2
         fi
     done
 
     # 显示最终结果
-    echo ""
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${GREEN}结果汇总${NC}"
-    echo -e "${BLUE}========================================${NC}"
+    echo "" >&2
+    echo -e "${BLUE}========================================${NC}" >&2
+    echo -e "${GREEN}结果汇总${NC}" >&2
+    echo -e "${BLUE}========================================${NC}" >&2
 
     if [ ${#times[@]} -gt 0 ]; then
         local final_sum=0
@@ -195,11 +176,11 @@ run_benchmark() {
         done
         local avg=$(awk -v s="$final_sum" -v n="${#times[@]}" 'BEGIN {printf "%.2f", s / n}')
 
-        echo -e "${GREEN}成功运行: ${#times[@]}/$RUNS${NC}"
-        echo -e "${GREEN}平均时间: ${avg}s${NC}"
+        echo -e "${GREEN}成功运行: ${#times[@]}/$RUNS${NC}" >&2
+        echo -e "${GREEN}平均时间: ${avg}s${NC}" >&2
 
         if [ $failed_runs -gt 0 ]; then
-            echo -e "${YELLOW}失败运行: $failed_runs${NC}"
+            echo -e "${YELLOW}失败运行: $failed_runs${NC}" >&2
         fi
 
         # 写入结果文件
@@ -219,7 +200,7 @@ run_benchmark() {
         echo "$avg"
         return 0
     else
-        echo -e "${RED}所有运行失败!${NC}"
+        echo -e "${RED}所有运行失败!${NC}" >&2
         echo "$case_name: 全部失败" >> "$RESULT_FILE"
         echo "" >> "$RESULT_FILE"
         echo "0"
@@ -236,7 +217,6 @@ echo -e "${BLUE}======================================${NC}"
 echo -e "可执行文件: $EXECUTABLE"
 echo -e "线程数: $THREADS"
 echo -e "每用例运行次数: $RUNS"
-echo -e "超时: ${TIMEOUT}s"
 echo -e "时间: $(date)"
 echo -e "${BLUE}======================================${NC}"
 
@@ -248,7 +228,6 @@ echo -e "${BLUE}======================================${NC}"
     echo "可执行文件: $EXECUTABLE"
     echo "线程数: $THREADS"
     echo "运行次数: $RUNS"
-    echo "超时: ${TIMEOUT}s"
     echo "时间: $(date)"
     echo "======================================"
     echo ""
