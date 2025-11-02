@@ -112,6 +112,12 @@ void Database::readDevice(string deviceName) {
         assert_t(device.node_to_wires.size() == device.nodeNum);
         assert_t(routingGraph.routeNodes.size() == device.nodeNum);
         log() << "Finish loading." << endl;
+        log() << "DEBUG: About to precompute outgoing nodes cache..." << endl;
+
+        // Optimized: Precompute outgoing nodes cache after loading from serialized cache
+        log() << "Precomputing outgoing nodes cache for " << device.nodeNum << " nodes..." << endl;
+        device.precompute_outgoing_nodes_cache();
+        log() << "Outgoing nodes cache ready." << endl;
     } else {
         device.read(deviceName);
         {
