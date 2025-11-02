@@ -6,28 +6,18 @@
 
 namespace Raw {
 
-// Optimized: Precompute all outgoing nodes once after device loading
-// This eliminates the 20.6% hotspot in ispd test case
-void Device::precompute_outgoing_nodes_cache() {
-    cached_outgoing_nodes.resize(nodeNum);
-
-    for (obj_idx node_idx = 0; node_idx < nodeNum; node_idx++) {
-        vector<obj_idx>& outgoing_nodes = cached_outgoing_nodes[node_idx];
-        for (Wire& wire: node_to_wires[node_idx]) {
-            if (wire.tile_type_idx == NULL_TILE) continue;
-            for (obj_idx child_wire_it_idx: tile_type_outgoing_wires[wire.tile_type_idx][wire.wire_in_tile_idx]) {
-                obj_idx child_idx = tile_wire_to_node[wire.tile_idx][child_wire_it_idx];
-                if (child_idx != invalid_obj_idx) {
-                    outgoing_nodes.emplace_back(child_idx);
-                }
+vector<obj_idx> Device::get_outgoing_nodes(obj_idx node_idx) {
+    vector<obj_idx> outgoing_nodes;
+    for (Wire& wire: node_to_wires[node_idx]) {
+        if (wire.tile_type_idx == NULL_TILE) continue;
+        for (obj_idx child_wire_it_idx: tile_type_outgoing_wires[wire.tile_type_idx][wire.wire_in_tile_idx]) {
+            obj_idx child_idx = tile_wire_to_node[wire.tile_idx][child_wire_it_idx];
+            if (child_idx != invalid_obj_idx) {
+                outgoing_nodes.emplace_back(child_idx);
             }
         }
     }
-}
-
-// Optimized: Return cached result by const reference (zero-cost lookup)
-const vector<obj_idx>& Device::get_outgoing_nodes(obj_idx node_idx) {
-    return cached_outgoing_nodes[node_idx];
+    return outgoing_nodes;
 }
 
 vector<obj_idx> Device::get_incoming_nodes(obj_idx node_idx) {
@@ -813,11 +803,6 @@ void Device::read(std::string device_file)
     // std::cout << "node_vquad -- cnt: " << node_vquad_cnt << " total_length: " << node_vquad_total_length << " total_cost: " << node_vquad_total_cost << " cost_per_length: " << node_vquad_total_cost / node_vquad_total_length << endl;
     // std::cout << "node_hquad -- cnt: " << node_hquad_cnt << " total_length: " << node_hquad_total_length << " total_cost: " << node_hquad_total_cost << " cost_per_length: " << node_hquad_total_cost / node_hquad_total_length << endl;
     log() << "Finish reading." << endl;
-
-    // Optimized: Precompute outgoing nodes cache to eliminate 20.6% ispd hotspot
-    log() << "Precomputing outgoing nodes cache for " << nodeNum << " nodes..." << endl;
-    precompute_outgoing_nodes_cache();
-    log() << "Outgoing nodes cache ready." << endl;
 }
 
 obj_idx Device::get_node_idx(obj_idx tile_idx, obj_idx wire_idx) 

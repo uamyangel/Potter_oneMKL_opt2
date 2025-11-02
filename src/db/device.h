@@ -127,19 +127,12 @@ public:
     ~Device();
     void read(string device_file);
     obj_idx get_site_pin_node(string site_name, string pin_name) const;
-
-    // Optimized: Return cached outgoing nodes by const reference (avoid recomputation)
-    // This function is called millions of times with the same arguments (device graph is static)
-    const vector<obj_idx>& get_outgoing_nodes(obj_idx node_idx);
-
+    vector<obj_idx> get_outgoing_nodes(obj_idx node_idx);
     vector<obj_idx> get_incoming_nodes(obj_idx node_idx);
     obj_idx get_node_idx(obj_idx tile_idx, obj_idx wire_idx);
     obj_idx get_node_idx(string& tile_name, string& wire_name);
 	const TileTypePIP& getTileTypePIP(obj_idx node0, obj_idx node1);
     void add_tile_type_pip(obj_idx tile_type_idx, obj_idx tile_type_wire_0_idx, obj_idx tile_type_wire_1_idx, bool directional);
-
-    // Precompute outgoing nodes cache for all nodes (called once after device loading)
-    void precompute_outgoing_nodes_cache();
 
     void dump();
     void load();
@@ -170,12 +163,6 @@ public:
     vector<vector<TileTypePIP>> tile_type_pip_list;
     vector<unordered_map<unsigned long, obj_idx>> tile_type_node_pair_to_pip_idx;
     // vector<string> node_names;
-
-    // Optimized: Precomputed cache for get_outgoing_nodes (ispd 20.6% hotspot)
-    // Device graph is static, so outgoing nodes never change after initialization
-    // Memory cost: ~28M nodes * avg 4 children * 4 bytes = ~450MB (acceptable)
-    vector<vector<obj_idx>> cached_outgoing_nodes;
-
 	void clearData(int i);
 
     // get shape of the device
