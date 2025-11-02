@@ -76,7 +76,7 @@ run_with_progress() {
 
         # 每5秒显示进度
         if [ $((elapsed % 5)) -eq 0 ]; then
-            echo -e "${YELLOW}  [${elapsed}s]${NC} $(tail -2 "$log_file" 2>/dev/null | head -1 | cut -c1-80)" >&2
+            echo -e "  $(tail -2 "$log_file" 2>/dev/null | head -1 | cut -c1-80)" >&2
         fi
     done
 
